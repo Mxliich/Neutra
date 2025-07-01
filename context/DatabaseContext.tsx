@@ -32,11 +32,26 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log('Initializing database...');
         const database = await SQLite.openDatabaseAsync('gym_logger.db');
         
-        // Create comprehensive tables
+        // Drop existing tables to ensure clean schema
         await database.execAsync(`
           PRAGMA journal_mode = WAL;
-          PRAGMA foreign_keys = ON;
+          PRAGMA foreign_keys = OFF;
           
+          DROP TABLE IF EXISTS workout_sets;
+          DROP TABLE IF EXISTS workout_exercises;
+          DROP TABLE IF EXISTS personal_records;
+          DROP TABLE IF EXISTS workouts;
+          DROP TABLE IF EXISTS template_exercises;
+          DROP TABLE IF EXISTS workout_templates;
+          DROP TABLE IF EXISTS user_settings;
+          DROP TABLE IF EXISTS exercises;
+          DROP TABLE IF EXISTS users;
+          
+          PRAGMA foreign_keys = ON;
+        `);
+        
+        // Create comprehensive tables with correct schema
+        await database.execAsync(`
           CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name VARCHAR(100) NOT NULL,
@@ -122,7 +137,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
           CREATE TABLE IF NOT EXISTS workout_sets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            workout_exercise_id INTEGER NOT NULL,
+            workout_id INTEGER NOT NULL,
+            exercise_id INTEGER NOT NULL,
             set_number INTEGER NOT NULL,
             reps INTEGER DEFAULT 0,
             weight DECIMAL(6,2) DEFAULT 0,
@@ -133,7 +149,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             rpe INTEGER CHECK(rpe BETWEEN 1 AND 10),
             notes TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (workout_exercise_id) REFERENCES workout_exercises (id) ON DELETE CASCADE
+            FOREIGN KEY (workout_id) REFERENCES workouts (id) ON DELETE CASCADE,
+            FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
           );
 
           CREATE TABLE IF NOT EXISTS personal_records (
@@ -169,7 +186,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
           -- Indexes for better performance
           CREATE INDEX IF NOT EXISTS idx_workouts_user_date ON workouts(user_id, start_time);
-          CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise ON workout_sets(workout_exercise_id);
+          CREATE INDEX IF NOT EXISTS idx_workout_sets_workout ON workout_sets(workout_id);
+          CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise ON workout_sets(exercise_id);
           CREATE INDEX IF NOT EXISTS idx_personal_records_user_exercise ON personal_records(user_id, exercise_id);
           CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises(category);
           CREATE INDEX IF NOT EXISTS idx_exercises_muscle ON exercises(primary_muscle);

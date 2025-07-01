@@ -229,24 +229,17 @@ export default function WorkoutScreen() {
 
       const workoutId = workoutResult.lastInsertRowId as number;
 
-      // Save exercises and sets
+      // Save sets directly to workout_sets table (simplified structure)
       for (let i = 0; i < activeExercises.length; i++) {
         const activeExercise = activeExercises[i];
         
-        // Save workout exercise
-        const exerciseResult = await db.runAsync(
-          'INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)',
-          [workoutId, activeExercise.exercise.id, i, activeExercise.notes || '']
-        );
-
-        const workoutExerciseId = exerciseResult.lastInsertRowId as number;
-
         // Save sets
         for (const set of activeExercise.sets) {
           await db.runAsync(
-            'INSERT INTO workout_sets (workout_exercise_id, set_number, reps, weight, weight_unit, completed, is_warmup, rest_time_seconds, rpe, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO workout_sets (workout_id, exercise_id, set_number, reps, weight, weight_unit, completed, is_warmup, rest_time_seconds, rpe, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
-              workoutExerciseId,
+              workoutId,
+              activeExercise.exercise.id,
               set.set_number,
               set.reps,
               set.weight,
