@@ -9,16 +9,32 @@ import {
   TextInput,
   Image,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useDatabase } from '@/context/DatabaseContext';
-import { Plus, Play, Square, X, Search, Check, Dumbbell } from 'lucide-react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { 
+  Plus, 
+  Play, 
+  Square, 
+  X, 
+  Search, 
+  Check, 
+  Dumbbell, 
+  Timer, 
+  BookOpen,
+  Trash2,
+  MoreVertical,
+  Clock
+} from 'lucide-react-native';
 import { useThemeColors } from '@/utils/colorSystem';
 import CustomPopup from '@/components/CustomPopup';
 import { usePopup } from '@/hooks/usePopup';
 import { getRandomMotivationalMessage } from '@/utils/fitnessMessages';
+import RestTimer from '@/components/RestTimer';
 
 const { width } = Dimensions.get('window');
 
@@ -29,26 +45,41 @@ interface Exercise {
   primary_muscle: string;
   equipment: string;
   difficulty_level: number;
+  instructions: string;
 }
 
 interface WorkoutSet {
   id?: number;
-  exercise_id: number;
   set_number: number;
   reps: number;
   weight: number;
   completed: boolean;
+  is_warmup: boolean;
+  rest_time_seconds?: number;
+  rpe?: number;
+  notes?: string;
 }
 
 interface ActiveExercise {
+  id?: number;
   exercise: Exercise;
   sets: WorkoutSet[];
+  notes?: string;
+}
+
+interface WorkoutTemplate {
+  id: number;
+  name: string;
+  exercises: any[];
 }
 
 export default function WorkoutScreen() {
   const { user } = useAuth();
   const { db } = useDatabase();
   const colors = useThemeColors();
+  const params = useLocalSearchParams();
+  const templateId = params.templateId ? parseInt(params.templateId as string) : null;
+  
   const {
     popupConfig,
     hidePopup,
@@ -61,16 +92,27 @@ export default function WorkoutScreen() {
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [activeExercises, setActiveExercises] = useState<ActiveExercise[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [timer, setTimer] = useState(0);
+  const [showRestTimer, setShowRestTimer] = useState(false);
+  const [currentRestTime, setCurrentRestTime] = useState(60);
+  const [workoutNotes, setWorkoutNotes] = useState('');
 
-  const categories = ['All', 'Chest', 'Back', 'Legs', 'Arms', 'Core'];
+  const categories = ['All', 'Chest', 'Back', 'Legs', 'Arms', 'Core', 'Cardio'];
 
   useEffect(() => {
     loadExercises();
-  }, [db]);
+    loadTemplates();
+    
+    // Load template if provided
+    if (templateId) {
+      loadTemplate(templateId);
+    }
+  }, [db, templateId]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -85,11 +127,78 @@ export default function WorkoutScreen() {
   const loadExercises = async () => {
     if (!db) return;
     try {
-      const result = await db.getAllAsync('SELECT * FROM exercises ORDER BY category, name');
+      const result = await db.getAllAsync(`
+        SELECT * FROM exercises 
+        WHERE is_custom = FALSE OR user_id = ? 
+        ORDER BY category, name
+      `, [user?.id || 0]);
       setExercises(result as Exercise[]);
     } catch (error) {
       console.error('Error loading exercises:', error);
       showError('Error', 'Failed to load exercises');
+    }
+  };
+
+  const loadTemplates = async () => {
+    if (!db || !user) return;
+    try {
+      const result = await db.getAllAsync(`
+        SELECT wt.*, COUNT(te.id) as exercise_count
+        FROM workout_templates wt
+        LEFT JOIN template_exercises te ON wt.id = te.template_id
+        WHERE wt.user_id = ?
+        GROUP BY wt.id
+        ORDER BY wt.is_favorite DESC, wt.name
+      `, [user.id]);
+      setTemplates(result as WorkoutTemplate[]);
+    } catch (error) {
+      console.error('Error loading templates:', error);
+    }
+  };
+
+  const loadTemplate = async (templateId: number) => {
+    if (!db) return;
+    
+    try {
+      // Get template exercises
+      const templateExercises = await db.getAllAsync(`
+        SELECT te.*, e.*
+        FROM template_exercises te
+        JOIN exercises e ON te.exercise_id = e.id
+        WHERE te.template_id = ?
+        ORDER BY te.order_index
+      `, [templateId]);
+
+      const loadedExercises: ActiveExercise[] = templateExercises.map((te: any) => ({
+        exercise: {
+          id: te.exercise_id,
+          name: te.name,
+          category: te.category,
+          primary_muscle: te.primary_muscle,
+          equipment: te.equipment,
+          difficulty_level: te.difficulty_level,
+          instructions: te.instructions,
+        },
+        sets: Array.from({ length: te.default_sets }, (_, i) => ({
+          set_number: i + 1,
+          reps: te.default_reps,
+          weight: te.default_weight,
+          completed: false,
+          is_warmup: i === 0, // First set as warmup
+          rest_time_seconds: te.rest_time_seconds,
+        })),
+        notes: te.notes,
+      }));
+
+      setActiveExercises(loadedExercises);
+      
+      // Auto-start workout if template is loaded
+      if (!isWorkoutActive) {
+        startWorkout();
+      }
+    } catch (error) {
+      console.error('Error loading template:', error);
+      showError('Error', 'Failed to load workout template');
     }
   };
 
@@ -115,21 +224,58 @@ export default function WorkoutScreen() {
       const endTime = new Date();
       const duration = Math.floor((endTime.getTime() - workoutStartTime.getTime()) / 1000);
 
+      // Calculate total volume
+      let totalVolume = 0;
+      activeExercises.forEach(exercise => {
+        exercise.sets.forEach(set => {
+          if (set.completed) {
+            totalVolume += set.weight * set.reps;
+          }
+        });
+      });
+
       // Save workout
       const workoutResult = await db.runAsync(
-        'INSERT INTO workouts (user_id, start_time, end_time, duration_seconds) VALUES (?, ?, ?, ?)',
-        [user.id, workoutStartTime.toISOString(), endTime.toISOString(), duration]
+        'INSERT INTO workouts (user_id, start_time, end_time, duration_seconds, total_volume, notes) VALUES (?, ?, ?, ?, ?, ?)',
+        [user.id, workoutStartTime.toISOString(), endTime.toISOString(), duration, totalVolume, workoutNotes]
       );
 
-      // Save all sets
-      for (const activeExercise of activeExercises) {
+      const workoutId = workoutResult.lastInsertRowId as number;
+
+      // Save exercises and sets
+      for (let i = 0; i < activeExercises.length; i++) {
+        const activeExercise = activeExercises[i];
+        
+        // Save workout exercise
+        const exerciseResult = await db.runAsync(
+          'INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)',
+          [workoutId, activeExercise.exercise.id, i, activeExercise.notes || '']
+        );
+
+        const workoutExerciseId = exerciseResult.lastInsertRowId as number;
+
+        // Save sets
         for (const set of activeExercise.sets) {
           await db.runAsync(
-            'INSERT INTO workout_sets (workout_id, exercise_id, set_number, reps, weight, completed, weight_unit) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [workoutResult.lastInsertRowId, set.exercise_id, set.set_number, set.reps, set.weight, set.completed, user.preferred_weight_unit]
+            'INSERT INTO workout_sets (workout_exercise_id, set_number, reps, weight, weight_unit, completed, is_warmup, rest_time_seconds, rpe, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              workoutExerciseId,
+              set.set_number,
+              set.reps,
+              set.weight,
+              user.preferred_weight_unit,
+              set.completed,
+              set.is_warmup,
+              set.rest_time_seconds || null,
+              set.rpe || null,
+              set.notes || ''
+            ]
           );
         }
       }
+
+      // Check for personal records
+      await checkPersonalRecords(workoutId);
 
       // Show completion message
       const completionMessage = getRandomMotivationalMessage('workoutComplete');
@@ -142,22 +288,74 @@ export default function WorkoutScreen() {
     }
   };
 
+  const checkPersonalRecords = async (workoutId: number) => {
+    if (!db || !user) return;
+
+    try {
+      for (const activeExercise of activeExercises) {
+        const completedSets = activeExercise.sets.filter(set => set.completed && !set.is_warmup);
+        
+        if (completedSets.length === 0) continue;
+
+        // Check for 1RM PR (highest weight)
+        const maxWeight = Math.max(...completedSets.map(set => set.weight));
+        const maxWeightSet = completedSets.find(set => set.weight === maxWeight);
+        
+        if (maxWeightSet) {
+          const estimated1RM = maxWeight * (1 + maxWeightSet.reps / 30); // Epley formula
+          
+          const existingPR = await db.getFirstAsync(
+            'SELECT value FROM personal_records WHERE user_id = ? AND exercise_id = ? AND record_type = "1RM"',
+            [user.id, activeExercise.exercise.id]
+          ) as { value: number } | null;
+
+          if (!existingPR || estimated1RM > existingPR.value) {
+            await db.runAsync(
+              'INSERT OR REPLACE INTO personal_records (user_id, exercise_id, record_type, value, reps, weight, weight_unit, workout_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [user.id, activeExercise.exercise.id, '1RM', estimated1RM, maxWeightSet.reps, maxWeight, user.preferred_weight_unit, workoutId]
+            );
+            
+            showSuccess('New Personal Record! 🏆', `New 1RM estimate for ${activeExercise.exercise.name}: ${Math.round(estimated1RM)} ${user.preferred_weight_unit}`);
+          }
+        }
+
+        // Check for volume PR
+        const totalVolume = completedSets.reduce((sum, set) => sum + (set.weight * set.reps), 0);
+        
+        const existingVolumePR = await db.getFirstAsync(
+          'SELECT value FROM personal_records WHERE user_id = ? AND exercise_id = ? AND record_type = "volume"',
+          [user.id, activeExercise.exercise.id]
+        ) as { value: number } | null;
+
+        if (!existingVolumePR || totalVolume > existingVolumePR.value) {
+          await db.runAsync(
+            'INSERT OR REPLACE INTO personal_records (user_id, exercise_id, record_type, value, workout_id) VALUES (?, ?, ?, ?, ?)',
+            [user.id, activeExercise.exercise.id, 'volume', totalVolume, workoutId]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error checking personal records:', error);
+    }
+  };
+
   const resetWorkout = () => {
     setIsWorkoutActive(false);
     setWorkoutStartTime(null);
     setActiveExercises([]);
     setTimer(0);
+    setWorkoutNotes('');
   };
 
   const addExercise = (exercise: Exercise) => {
     const newActiveExercise: ActiveExercise = {
       exercise,
       sets: [{
-        exercise_id: exercise.id,
         set_number: 1,
         reps: 0,
         weight: 0,
         completed: false,
+        is_warmup: true,
       }],
     };
     setActiveExercises([...activeExercises, newActiveExercise]);
@@ -168,24 +366,49 @@ export default function WorkoutScreen() {
     const updatedExercises = [...activeExercises];
     const lastSet = updatedExercises[exerciseIndex].sets[updatedExercises[exerciseIndex].sets.length - 1];
     const newSet: WorkoutSet = {
-      exercise_id: lastSet.exercise_id,
       set_number: lastSet.set_number + 1,
       reps: lastSet.reps,
       weight: lastSet.weight,
       completed: false,
+      is_warmup: false,
+      rest_time_seconds: lastSet.rest_time_seconds,
     };
     updatedExercises[exerciseIndex].sets.push(newSet);
     setActiveExercises(updatedExercises);
   };
 
-  const updateSet = (exerciseIndex: number, setIndex: number, field: 'reps' | 'weight' | 'completed', value: any) => {
+  const updateSet = (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: any) => {
     const updatedExercises = [...activeExercises];
-    updatedExercises[exerciseIndex].sets[setIndex][field] = value;
+    updatedExercises[exerciseIndex].sets[setIndex] = {
+      ...updatedExercises[exerciseIndex].sets[setIndex],
+      [field]: value
+    };
     setActiveExercises(updatedExercises);
+
+    // Auto-start rest timer when set is completed
+    if (field === 'completed' && value === true) {
+      const set = updatedExercises[exerciseIndex].sets[setIndex];
+      if (set.rest_time_seconds && set.rest_time_seconds > 0) {
+        setCurrentRestTime(set.rest_time_seconds);
+        setShowRestTimer(true);
+      }
+    }
   };
 
   const removeExercise = (exerciseIndex: number) => {
     const updatedExercises = activeExercises.filter((_, index) => index !== exerciseIndex);
+    setActiveExercises(updatedExercises);
+  };
+
+  const removeSet = (exerciseIndex: number, setIndex: number) => {
+    const updatedExercises = [...activeExercises];
+    updatedExercises[exerciseIndex].sets = updatedExercises[exerciseIndex].sets.filter((_, index) => index !== setIndex);
+    
+    // Renumber remaining sets
+    updatedExercises[exerciseIndex].sets.forEach((set, index) => {
+      set.set_number = index + 1;
+    });
+    
     setActiveExercises(updatedExercises);
   };
 
@@ -220,25 +443,62 @@ export default function WorkoutScreen() {
     </TouchableOpacity>
   );
 
+  const renderTemplateItem = ({ item }: { item: WorkoutTemplate }) => (
+    <TouchableOpacity
+      style={[styles.templateItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={() => {
+        loadTemplate(item.id);
+        setShowTemplateModal(false);
+      }}
+    >
+      <Text style={[styles.templateName, { color: colors.text.primary }]}>{item.name}</Text>
+      <Text style={[styles.templateExercises, { color: colors.text.secondary }]}>
+        {item.exercise_count} exercises
+      </Text>
+    </TouchableOpacity>
+  );
+
   const renderActiveExercise = ({ item, index }: { item: ActiveExercise; index: number }) => (
     <View style={[styles.activeExerciseCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.exerciseHeader}>
-        <Text style={[styles.activeExerciseName, { color: colors.text.primary }]}>{item.exercise.name}</Text>
-        <TouchableOpacity onPress={() => removeExercise(index)}>
-          <X size={20} color={colors.text.secondary} />
-        </TouchableOpacity>
+        <View style={styles.exerciseHeaderLeft}>
+          <Text style={[styles.activeExerciseName, { color: colors.text.primary }]}>{item.exercise.name}</Text>
+          <Text style={[styles.exerciseMuscle, { color: colors.text.secondary }]}>
+            {item.exercise.primary_muscle}
+          </Text>
+        </View>
+        <View style={styles.exerciseHeaderRight}>
+          <TouchableOpacity
+            style={[styles.restTimerButton, { backgroundColor: colors.primary + '20' }]}
+            onPress={() => {
+              setCurrentRestTime(60);
+              setShowRestTimer(true);
+            }}
+          >
+            <Clock size={16} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => removeExercise(index)}>
+            <X size={20} color={colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
       </View>
       
       <View style={styles.setsHeader}>
         <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Set</Text>
         <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Reps</Text>
         <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Weight</Text>
-        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Done</Text>
+        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>✓</Text>
+        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>•••</Text>
       </View>
 
       {item.sets.map((set, setIndex) => (
         <View key={setIndex} style={styles.setRow}>
-          <Text style={[styles.setNumber, { color: colors.text.primary }]}>{set.set_number}</Text>
+          <View style={styles.setNumberContainer}>
+            <Text style={[styles.setNumber, { color: colors.text.primary }]}>
+              {set.is_warmup ? 'W' : set.set_number}
+            </Text>
+          </View>
+          
           <TextInput
             style={[styles.setInput, { backgroundColor: colors.inputBackground, color: colors.text.primary }]}
             value={set.reps.toString()}
@@ -247,6 +507,7 @@ export default function WorkoutScreen() {
             placeholder="0"
             placeholderTextColor={colors.text.tertiary}
           />
+          
           <TextInput
             style={[styles.setInput, { backgroundColor: colors.inputBackground, color: colors.text.primary }]}
             value={set.weight.toString()}
@@ -255,6 +516,7 @@ export default function WorkoutScreen() {
             placeholder="0"
             placeholderTextColor={colors.text.tertiary}
           />
+          
           <TouchableOpacity
             style={[
               styles.checkButton, 
@@ -263,6 +525,30 @@ export default function WorkoutScreen() {
             onPress={() => updateSet(index, setIndex, 'completed', !set.completed)}
           >
             {set.completed && <Check size={16} color="#FFFFFF" />}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.moreButton}
+            onPress={() => {
+              Alert.alert(
+                'Set Options',
+                'What would you like to do?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Delete Set', 
+                    style: 'destructive',
+                    onPress: () => removeSet(index, setIndex)
+                  },
+                  {
+                    text: 'Toggle Warmup',
+                    onPress: () => updateSet(index, setIndex, 'is_warmup', !set.is_warmup)
+                  }
+                ]
+              );
+            }}
+          >
+            <MoreVertical size={16} color={colors.text.secondary} />
           </TouchableOpacity>
         </View>
       ))}
@@ -284,16 +570,29 @@ export default function WorkoutScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={[styles.timerContainer, { backgroundColor: colors.surface }]}>
+          <Timer size={20} color={colors.text.primary} />
           <Text style={[styles.timerText, { color: colors.text.primary }]}>{formatTime(timer)}</Text>
         </View>
-        {isWorkoutActive && (
-          <TouchableOpacity 
-            style={[styles.endButton, { backgroundColor: colors.primary }]} 
-            onPress={endWorkout}
-          >
-            <Text style={styles.endButtonText}>End</Text>
-          </TouchableOpacity>
-        )}
+        
+        <View style={styles.headerActions}>
+          {!isWorkoutActive && (
+            <TouchableOpacity
+              style={[styles.headerButton, { backgroundColor: colors.secondary }]}
+              onPress={() => setShowTemplateModal(true)}
+            >
+              <BookOpen size={16} color={colors.text.onSecondary} />
+            </TouchableOpacity>
+          )}
+          
+          {isWorkoutActive && (
+            <TouchableOpacity 
+              style={[styles.endButton, { backgroundColor: colors.error }]} 
+              onPress={endWorkout}
+            >
+              <Text style={styles.endButtonText}>End</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {!isWorkoutActive ? (
@@ -316,15 +615,27 @@ export default function WorkoutScreen() {
             </LinearGradient>
           </View>
           
-          <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
-            <LinearGradient
-              colors={colors.gradients.primary}
-              style={styles.startButtonGradient}
+          <View style={styles.startActions}>
+            <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
+              <LinearGradient
+                colors={colors.gradients.primary}
+                style={styles.startButtonGradient}
+              >
+                <Play size={24} color="#FFFFFF" />
+                <Text style={styles.startButtonText}>Start Empty Workout</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.templateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={() => setShowTemplateModal(true)}
             >
-              <Play size={24} color="#FFFFFF" />
-              <Text style={styles.startButtonText}>Start Workout</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <BookOpen size={20} color={colors.text.primary} />
+              <Text style={[styles.templateButtonText, { color: colors.text.primary }]}>
+                Use Template
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
         <View style={styles.workoutContainer}>
@@ -340,6 +651,7 @@ export default function WorkoutScreen() {
               renderItem={renderActiveExercise}
               keyExtractor={(item, index) => index.toString()}
               showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.exercisesList}
             />
           )}
           
@@ -418,6 +730,50 @@ export default function WorkoutScreen() {
         </SafeAreaView>
       </Modal>
 
+      {/* Template Selection Modal */}
+      <Modal
+        visible={showTemplateModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Select Template</Text>
+            <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
+              <X size={24} color={colors.text.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {templates.length === 0 ? (
+            <View style={styles.emptyTemplates}>
+              <Text style={[styles.emptyTemplatesText, { color: colors.text.secondary }]}>
+                No templates found. Create one in the Templates tab!
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={templates}
+              renderItem={renderTemplateItem}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.templatesList}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* Rest Timer */}
+      <RestTimer
+        visible={showRestTimer}
+        onClose={() => setShowRestTimer(false)}
+        initialTime={currentRestTime}
+        onComplete={() => {
+          setShowRestTimer(false);
+          showSuccess('Rest Complete!', 'Time for your next set! 💪');
+        }}
+      />
+
+      {/* Popup */}
       <CustomPopup
         {...popupConfig}
         onClose={hidePopup}
@@ -441,13 +797,25 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderBottomColor: colors.border,
   },
   timerContainer: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    gap: 8,
   },
   timerText: {
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: 'Inter-Bold',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   endButton: {
     paddingHorizontal: 16,
@@ -464,7 +832,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingHorizontal: 16,
   },
   heroContainer: {
-    height: 300,
+    height: 250,
     borderRadius: 20,
     overflow: 'hidden',
     marginVertical: 32,
@@ -502,6 +870,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     textAlign: 'center',
     opacity: 0.9,
   },
+  startActions: {
+    gap: 16,
+  },
   startButton: {
     borderRadius: 16,
     shadowColor: colors.shadow.color,
@@ -517,21 +888,38 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 16,
+    gap: 8,
   },
   startButtonText: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
-    marginLeft: 8,
+  },
+  templateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+  },
+  templateButtonText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
   },
   workoutContainer: {
     flex: 1,
+  },
+  exercisesList: {
     padding: 16,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 32,
   },
   emptyStateText: {
     fontSize: 16,
@@ -552,12 +940,29 @@ const createStyles = (colors: any) => StyleSheet.create({
   exerciseHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
+  },
+  exerciseHeaderLeft: {
+    flex: 1,
+  },
+  exerciseHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   activeExerciseName: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
+    marginBottom: 2,
+  },
+  exerciseMuscle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  restTimerButton: {
+    padding: 8,
+    borderRadius: 8,
   },
   setsHeader: {
     flexDirection: 'row',
@@ -568,7 +973,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   setHeaderText: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    width: 60,
+    width: 50,
     textAlign: 'center',
   },
   setRow: {
@@ -576,15 +981,19 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 8,
+    gap: 8,
+  },
+  setNumberContainer: {
+    width: 50,
+    alignItems: 'center',
   },
   setNumber: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    width: 60,
     textAlign: 'center',
   },
   setInput: {
-    width: 60,
+    width: 50,
     height: 40,
     borderRadius: 8,
     textAlign: 'center',
@@ -598,17 +1007,23 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  moreButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   addSetButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     marginTop: 8,
+    gap: 4,
   },
   addSetText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    marginLeft: 4,
   },
   addExerciseButton: {
     position: 'absolute',
@@ -692,5 +1107,34 @@ const createStyles = (colors: any) => StyleSheet.create({
   exerciseDetails: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
+  },
+  templatesList: {
+    padding: 16,
+  },
+  templateItem: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  templateName: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 4,
+  },
+  templateExercises: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  emptyTemplates: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyTemplatesText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
   },
 });

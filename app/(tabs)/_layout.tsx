@@ -1,15 +1,17 @@
 import { Tabs, Redirect } from 'expo-router';
-import { Home, Dumbbell, Heart, User, Settings } from 'lucide-react-native';
+import { Home, Dumbbell, Heart, User, Settings, BookOpen } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
+import { useThemeColors } from '@/utils/colorSystem';
 
 export default function TabLayout() {
   const { user, isLoading } = useAuth();
+  const colors = useThemeColors();
 
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#FF6B9D" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -23,15 +25,15 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#F1F3F4',
+          borderTopColor: colors.border,
           height: 80,
           paddingBottom: 20,
           paddingTop: 10,
         },
-        tabBarActiveTintColor: '#FF6B9D',
-        tabBarInactiveTintColor: '#6C757D',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.text.secondary,
         tabBarLabelStyle: {
           fontSize: 12,
           fontFamily: 'Inter-Medium',
@@ -53,6 +55,15 @@ export default function TabLayout() {
           title: 'Workout',
           tabBarIcon: ({ size, color }) => (
             <Dumbbell size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="templates"
+        options={{
+          title: 'Templates',
+          tabBarIcon: ({ size, color }) => (
+            <BookOpen size={size} color={color} />
           ),
         }}
       />
