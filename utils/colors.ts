@@ -1,131 +1,173 @@
 // Light Mode Colors
 export const lightColors = {
   // Primary brand colors - Energy and motivation focused
-  primary: '#E63946',        // Energetic red - main brand color
-  primaryLight: '#FF6B6B',   // Lighter red for hover states
-  primaryDark: '#C62828',    // Darker red for pressed states
+  primary: '#FF4757',        // Vibrant Red - Energy, power, intensity
+  primaryLight: '#FF6B7A',   // Light Red - Softer accent
+  primaryDark: '#E73C3E',    // Dark Red - Depth and strength
   
-  // Secondary colors - Strength and progress
-  secondary: '#457B9D',      // Steel blue - represents strength
-  secondaryLight: '#6BB6FF', // Light blue for accents
-  secondaryDark: '#1E3A5F',  // Dark blue for contrast
+  // Secondary colors - Growth and progress
+  secondary: '#2ED573',      // Energetic Green - Growth, progress, success
+  secondaryLight: '#5DE88A', // Light Green - Positive feedback
+  secondaryDark: '#27C55A',  // Dark Green - Achievement
   
-  // Accent colors - Success and achievement
-  accent: '#2D9CDB',         // Bright blue - for actions and links
-  accentLight: '#64B5F6',    // Light blue for backgrounds
-  accentDark: '#1976D2',     // Dark blue for text
+  // Accent colors - Focus and determination
+  accent: '#3742FA',         // Electric Blue - Focus, determination
+  accentLight: '#5A67FF',    // Light Blue - Highlights
+  accentDark: '#2F35D1',     // Dark Blue - Deep focus
   
-  // Success colors - Achievement and completion
-  success: '#06D6A0',        // Mint green - workout completion
-  successLight: '#4ECDC4',   // Light teal for success backgrounds
-  successDark: '#00A085',    // Dark green for success text
+  // Warning and energy
+  warning: '#FFA502',        // Orange - Energy, caution
+  warningLight: '#FFB733',   // Light Orange - Gentle warnings
+  warningDark: '#E6920D',    // Dark Orange - Strong warnings
   
-  // Warning colors - Attention and caution
-  warning: '#FFB627',        // Orange - rest time, warnings
-  warningLight: '#FFD54F',   // Light orange for backgrounds
-  warningDark: '#F57C00',    // Dark orange for text
+  // Success and achievement
+  success: '#2ED573',        // Green - Success, completion
+  successLight: '#5DE88A',   // Light Green - Positive feedback
+  successDark: '#27C55A',    // Dark Green - Major achievements
   
-  // Error colors - Mistakes and failures
-  error: '#EF4444',          // Red - form errors, failed sets
-  errorLight: '#FCA5A5',     // Light red for error backgrounds
-  errorDark: '#DC2626',      // Dark red for error text
+  // Error and intensity
+  error: '#FF3838',          // Bright Red - Errors, intensity
+  errorLight: '#FF6B6B',     // Light Red - Gentle errors
+  errorDark: '#E73C3E',      // Dark Red - Critical errors
   
-  // Neutral colors - Background and text
-  background: '#FFFFFF',      // Pure white main background
-  surface: '#F8FAFC',        // Light gray surface color
-  surfaceVariant: '#F1F5F9',  // Slightly darker surface
+  // Neutral colors - Balance and calm
+  background: '#F8F9FA',     // Light Gray - Main background
+  surface: '#FFFFFF',        // Pure White - Cards, surfaces
+  surfaceElevated: '#FFFFFF', // White with shadow
+  
+  // Input and interactive
+  inputBackground: '#F1F3F4', // Light Gray - Input fields
+  inputBorder: '#E1E5E9',    // Border Gray - Input borders
+  inputFocused: '#3742FA',   // Blue - Focused state
   
   // Text colors
   text: {
-    primary: '#1E293B',      // Dark slate for primary text
-    secondary: '#64748B',    // Medium slate for secondary text
-    tertiary: '#94A3B8',     // Light slate for tertiary text
-    onPrimary: '#FFFFFF',    // White text on primary colors
-    onSurface: '#334155',    // Dark text on surface colors
+    primary: '#1E1E1E',      // Almost Black - Primary text
+    secondary: '#6C757D',    // Medium Gray - Secondary text
+    tertiary: '#ADB5BD',     // Light Gray - Tertiary text
+    onPrimary: '#FFFFFF',    // White - Text on primary colors
+    onSecondary: '#FFFFFF',  // White - Text on secondary colors
+    onAccent: '#FFFFFF',     // White - Text on accent colors
+    onSurface: '#1E1E1E',    // Dark - Text on surface
+    disabled: '#CED4DA',     // Light Gray - Disabled text
   },
   
-  // Border and divider colors
-  border: '#E2E8F0',         // Light border color
-  divider: '#CBD5E1',        // Divider color
+  // Muscle group colors (Fitness specific)
+  muscleGroups: {
+    chest: '#FF4757',        // Red - Chest
+    back: '#2ED573',         // Green - Back
+    shoulders: '#3742FA',    // Blue - Shoulders
+    arms: '#FFA502',         // Orange - Arms
+    legs: '#A55EEA',         // Purple - Legs
+    core: '#FF6B9D',         // Pink - Core
+    cardio: '#FF9F43',       // Bright Orange - Cardio
+  },
   
-  // Fitness-specific colors
-  cardio: '#FF6B35',         // Orange for cardio exercises
-  strength: '#4ECDC4',       // Teal for strength training
-  flexibility: '#A8E6CF',    // Light green for flexibility
-  endurance: '#6C5CE7',      // Purple for endurance training
+  // Gradient colors
+  gradients: {
+    primary: ['#FF4757', '#FF6B7A'],
+    secondary: ['#2ED573', '#5DE88A'],
+    accent: ['#3742FA', '#5A67FF'],
+    warm: ['#FF4757', '#FFA502'],
+    cool: ['#2ED573', '#3742FA'],
+    sunset: ['#FF4757', '#FFA502', '#FF6B7A'],
+  },
   
-  // Muscle group colors
-  chest: '#FF6B6B',          // Red for chest exercises
-  back: '#4ECDC4',           // Teal for back exercises
-  shoulders: '#A8E6CF',      // Light green for shoulders
-  arms: '#FFD93D',           // Yellow for arms
-  legs: '#6C5CE7',           // Purple for legs
-  core: '#FF8A65',           // Orange for core
+  // Shadow and elevation
+  shadow: {
+    color: '#000000',
+    opacity: 0.1,
+  },
+  
+  // Border and divider
+  border: '#E1E5E9',
+  divider: '#F1F3F4',
 };
 
 // Dark Mode Colors
 export const darkColors = {
-  // Primary colors - Maintained brand identity
-  primary: '#FF6B6B',        // Softer red for dark mode
-  primaryLight: '#FF8A80',   // Lighter red
-  primaryDark: '#E53935',    // Darker red
+  // Primary colors - Energy and motivation (Slightly muted for dark mode)
+  primary: '#FF6B7A',        // Softer Red - Easier on eyes
+  primaryLight: '#FF8A95',   // Light Red - Gentle accent
+  primaryDark: '#FF4757',    // Original Red - Highlights
   
-  // Secondary colors - Cool and professional
-  secondary: '#64B5F6',      // Light blue for dark mode
-  secondaryLight: '#90CAF9', // Lighter blue
-  secondaryDark: '#42A5F5',  // Darker blue
+  // Secondary colors - Growth and progress
+  secondary: '#5DE88A',      // Softer Green - Progress in dark
+  secondaryLight: '#7EED9F', // Light Green - Positive feedback
+  secondaryDark: '#2ED573',  // Original Green - Strong success
   
-  // Accent colors - Bright and energetic
-  accent: '#4FC3F7',         // Cyan for dark mode actions
-  accentLight: '#81D4FA',    // Light cyan
-  accentDark: '#29B6F6',     // Dark cyan
+  // Accent colors - Focus and determination
+  accent: '#5A67FF',         // Softer Blue - Focus without strain
+  accentLight: '#7B85FF',    // Light Blue - Highlights
+  accentDark: '#3742FA',     // Original Blue - Deep focus
   
-  // Success colors - Vibrant but not harsh
-  success: '#4ECDC4',        // Teal for dark mode success
-  successLight: '#80CBC4',   // Light teal
-  successDark: '#26A69A',    // Dark teal
+  // Warning and energy
+  warning: '#FFB733',        // Softer Orange - Warnings
+  warningLight: '#FFC859',   // Light Orange - Gentle warnings
+  warningDark: '#FFA502',    // Original Orange - Strong warnings
   
-  // Warning colors - Warm but not aggressive
-  warning: '#FFB74D',        // Orange for dark mode warnings
-  warningLight: '#FFCC02',   // Light orange
-  warningDark: '#FF9800',    // Dark orange
+  // Success and achievement
+  success: '#5DE88A',        // Softer Green - Success
+  successLight: '#7EED9F',   // Light Green - Positive feedback
+  successDark: '#2ED573',    // Original Green - Major achievements
   
-  // Error colors - Visible but not harsh
-  error: '#EF5350',          // Red for dark mode errors
-  errorLight: '#E57373',     // Light red
-  errorDark: '#D32F2F',      // Dark red
+  // Error and intensity
+  error: '#FF6B6B',          // Softer Red - Errors
+  errorLight: '#FF8E8E',     // Light Red - Gentle errors
+  errorDark: '#FF3838',      // Original Red - Critical errors
   
-  // Background colors - Dark theme
-  background: '#0F1419',     // Very dark blue-gray
-  surface: '#1A202C',        // Dark surface
-  surfaceVariant: '#2D3748', // Lighter dark surface
+  // Neutral colors - Dark theme
+  background: '#121212',     // Dark Gray - Main background
+  surface: '#1E1E1E',        // Darker Gray - Cards, surfaces
+  surfaceElevated: '#2D2D2D', // Elevated surfaces
   
-  // Text colors for dark mode
+  // Input and interactive
+  inputBackground: '#2D2D2D', // Dark Gray - Input fields
+  inputBorder: '#404040',    // Border Gray - Input borders
+  inputFocused: '#5A67FF',   // Blue - Focused state
+  
+  // Text colors
   text: {
-    primary: '#F7FAFC',      // Light gray for primary text
-    secondary: '#CBD5E1',    // Medium gray for secondary text
-    tertiary: '#94A3B8',     // Darker gray for tertiary text
-    onPrimary: '#FFFFFF',    // White text on primary colors
-    onSurface: '#E2E8F0',    // Light text on surface colors
+    primary: '#FFFFFF',      // White - Primary text
+    secondary: '#B0B0B0',    // Light Gray - Secondary text
+    tertiary: '#808080',     // Medium Gray - Tertiary text
+    onPrimary: '#FFFFFF',    // White - Text on primary colors
+    onSecondary: '#FFFFFF',  // White - Text on secondary colors
+    onAccent: '#FFFFFF',     // White - Text on accent colors
+    onSurface: '#FFFFFF',    // White - Text on surface
+    disabled: '#606060',     // Dark Gray - Disabled text
   },
   
-  // Border and divider colors
-  border: '#374151',         // Gray border for dark mode
-  divider: '#4B5563',        // Divider color
+  // Muscle group colors (Adjusted for dark mode)
+  muscleGroups: {
+    chest: '#FF6B7A',        // Softer Red - Chest
+    back: '#5DE88A',         // Softer Green - Back
+    shoulders: '#5A67FF',    // Softer Blue - Shoulders
+    arms: '#FFB733',         // Softer Orange - Arms
+    legs: '#B983F3',         // Softer Purple - Legs
+    core: '#FF8FA8',         // Softer Pink - Core
+    cardio: '#FFAD5C',       // Softer Orange - Cardio
+  },
   
-  // Fitness-specific colors (adjusted for dark mode)
-  cardio: '#FF7043',         // Softer orange for cardio
-  strength: '#4DB6AC',       // Softer teal for strength
-  flexibility: '#81C784',    // Softer green for flexibility
-  endurance: '#7986CB',      // Softer purple for endurance
+  // Gradient colors (Adjusted for dark mode)
+  gradients: {
+    primary: ['#FF6B7A', '#FF8A95'],
+    secondary: ['#5DE88A', '#7EED9F'],
+    accent: ['#5A67FF', '#7B85FF'],
+    warm: ['#FF6B7A', '#FFB733'],
+    cool: ['#5DE88A', '#5A67FF'],
+    sunset: ['#FF6B7A', '#FFB733', '#FF8A95'],
+  },
   
-  // Muscle group colors (dark mode optimized)
-  chest: '#EF5350',          // Red for chest
-  back: '#26C6DA',           // Cyan for back
-  shoulders: '#66BB6A',      // Green for shoulders
-  arms: '#FFCA28',           // Amber for arms
-  legs: '#AB47BC',           // Purple for legs
-  core: '#FF7043',           // Orange for core
+  // Shadow and elevation (Adjusted for dark mode)
+  shadow: {
+    color: '#000000',
+    opacity: 0.3,
+  },
+  
+  // Border and divider
+  border: '#404040',
+  divider: '#2D2D2D',
 };
 
 // Color utility functions

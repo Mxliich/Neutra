@@ -86,6 +86,26 @@ export const usePopup = () => {
     });
   }, [showPopup]);
 
+  const showConfirmation = useCallback((title: string, message: string, onConfirm: () => void, onCancel?: () => void) => {
+    showPopup({
+      type: 'warning',
+      title,
+      message,
+      actions: [
+        {
+          text: 'Cancel',
+          onPress: onCancel,
+        },
+        {
+          text: 'Confirm',
+          onPress: onConfirm,
+          primary: true,
+        },
+      ],
+      autoClose: false,
+    });
+  }, [showPopup]);
+
   return {
     popupConfig,
     showPopup,
@@ -94,5 +114,6 @@ export const usePopup = () => {
     showSuccess,
     showWarning,
     showInfo,
+    showConfirmation,
   };
 };

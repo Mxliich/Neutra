@@ -15,6 +15,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useDatabase } from '@/context/DatabaseContext';
 import { Plus, Play, Square, X, Search, Check, Dumbbell } from 'lucide-react-native';
+import { useThemeColors } from '@/utils/colorSystem';
+import CustomPopup from '@/components/CustomPopup';
+import { usePopup } from '@/hooks/usePopup';
+import { getRandomMotivationalMessage } from '@/utils/fitnessMessages';
 
 const { width } = Dimensions.get('window');
 
@@ -44,6 +48,15 @@ interface ActiveExercise {
 export default function WorkoutScreen() {
   const { user } = useAuth();
   const { db } = useDatabase();
+  const colors = useThemeColors();
+  const {
+    popupConfig,
+    hidePopup,
+    showSuccess,
+    showError,
+    showConfirmation,
+  } = usePopup();
+  
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [activeExercises, setActiveExercises] = useState<ActiveExercise[]>([]);
@@ -52,7 +65,6 @@ export default function WorkoutScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [timer, setTimer] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
   const categories = ['All', 'Chest', 'Back', 'Legs', 'Arms', 'Core'];
 
@@ -77,7 +89,7 @@ export default function WorkoutScreen() {
       setExercises(result as Exercise[]);
     } catch (error) {
       console.error('Error loading exercises:', error);
-      setError('Failed to load exercises');
+      showError('Error', 'Failed to load exercises');
     }
   };
 
@@ -85,11 +97,19 @@ export default function WorkoutScreen() {
     setIsWorkoutActive(true);
     setWorkoutStartTime(new Date());
     setTimer(0);
-    setError(null);
   };
 
   const endWorkout = async () => {
     if (!user || !db || !workoutStartTime) return;
+
+    if (activeExercises.length === 0) {
+      showConfirmation(
+        'End Empty Workout?',
+        'You haven\'t added any exercises. Are you sure you want to end this workout?',
+        () => resetWorkout()
+      );
+      return;
+    }
 
     try {
       const endTime = new Date();
@@ -111,10 +131,14 @@ export default function WorkoutScreen() {
         }
       }
 
+      // Show completion message
+      const completionMessage = getRandomMotivationalMessage('workoutComplete');
+      showSuccess('Workout Complete! 💪', completionMessage);
+      
       resetWorkout();
     } catch (error) {
       console.error('Error saving workout:', error);
-      setError('Failed to save workout');
+      showError('Save Error', 'Failed to save workout. Please try again.');
     }
   };
 
@@ -184,12 +208,12 @@ export default function WorkoutScreen() {
 
   const renderExerciseItem = ({ item }: { item: Exercise }) => (
     <TouchableOpacity
-      style={styles.exerciseItem}
+      style={[styles.exerciseItem, { borderBottomColor: colors.divider }]}
       onPress={() => addExercise(item)}
     >
       <View style={styles.exerciseInfo}>
-        <Text style={styles.exerciseName}>{item.name}</Text>
-        <Text style={styles.exerciseDetails}>
+        <Text style={[styles.exerciseName, { color: colors.text.primary }]}>{item.name}</Text>
+        <Text style={[styles.exerciseDetails, { color: colors.text.secondary }]}>
           {item.primary_muscle} • {item.equipment} • {'★'.repeat(item.difficulty_level)}
         </Text>
       </View>
@@ -197,40 +221,45 @@ export default function WorkoutScreen() {
   );
 
   const renderActiveExercise = ({ item, index }: { item: ActiveExercise; index: number }) => (
-    <View style={styles.activeExerciseCard}>
+    <View style={[styles.activeExerciseCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.exerciseHeader}>
-        <Text style={styles.activeExerciseName}>{item.exercise.name}</Text>
+        <Text style={[styles.activeExerciseName, { color: colors.text.primary }]}>{item.exercise.name}</Text>
         <TouchableOpacity onPress={() => removeExercise(index)}>
-          <X size={20} color="#6C757D" />
+          <X size={20} color={colors.text.secondary} />
         </TouchableOpacity>
       </View>
       
       <View style={styles.setsHeader}>
-        <Text style={styles.setHeaderText}>Set</Text>
-        <Text style={styles.setHeaderText}>Reps</Text>
-        <Text style={styles.setHeaderText}>Weight</Text>
-        <Text style={styles.setHeaderText}>Done</Text>
+        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Set</Text>
+        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Reps</Text>
+        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Weight</Text>
+        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Done</Text>
       </View>
 
       {item.sets.map((set, setIndex) => (
         <View key={setIndex} style={styles.setRow}>
-          <Text style={styles.setNumber}>{set.set_number}</Text>
+          <Text style={[styles.setNumber, { color: colors.text.primary }]}>{set.set_number}</Text>
           <TextInput
-            style={styles.setInput}
+            style={[styles.setInput, { backgroundColor: colors.inputBackground, color: colors.text.primary }]}
             value={set.reps.toString()}
             onChangeText={(text) => updateSet(index, setIndex, 'reps', parseInt(text) || 0)}
             keyboardType="numeric"
             placeholder="0"
+            placeholderTextColor={colors.text.tertiary}
           />
           <TextInput
-            style={styles.setInput}
+            style={[styles.setInput, { backgroundColor: colors.inputBackground, color: colors.text.primary }]}
             value={set.weight.toString()}
             onChangeText={(text) => updateSet(index, setIndex, 'weight', parseFloat(text) || 0)}
             keyboardType="numeric"
             placeholder="0"
+            placeholderTextColor={colors.text.tertiary}
           />
           <TouchableOpacity
-            style={[styles.checkButton, set.completed && styles.checkButtonCompleted]}
+            style={[
+              styles.checkButton, 
+              { backgroundColor: set.completed ? colors.success : colors.inputBackground }
+            ]}
             onPress={() => updateSet(index, setIndex, 'completed', !set.completed)}
           >
             {set.completed && <Check size={16} color="#FFFFFF" />}
@@ -242,31 +271,30 @@ export default function WorkoutScreen() {
         style={styles.addSetButton}
         onPress={() => addSet(index)}
       >
-        <Plus size={16} color="#FF6B9D" />
-        <Text style={styles.addSetText}>Add Set</Text>
+        <Plus size={16} color={colors.primary} />
+        <Text style={[styles.addSetText, { color: colors.primary }]}>Add Set</Text>
       </TouchableOpacity>
     </View>
   );
+
+  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.timerContainer}>
-          <Text style={styles.timerText}>{formatTime(timer)}</Text>
+        <View style={[styles.timerContainer, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.timerText, { color: colors.text.primary }]}>{formatTime(timer)}</Text>
         </View>
         {isWorkoutActive && (
-          <TouchableOpacity style={styles.endButton} onPress={endWorkout}>
+          <TouchableOpacity 
+            style={[styles.endButton, { backgroundColor: colors.primary }]} 
+            onPress={endWorkout}
+          >
             <Text style={styles.endButtonText}>End</Text>
           </TouchableOpacity>
         )}
       </View>
-
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
 
       {!isWorkoutActive ? (
         <View style={styles.startContainer}>
@@ -290,7 +318,7 @@ export default function WorkoutScreen() {
           
           <TouchableOpacity style={styles.startButton} onPress={startWorkout}>
             <LinearGradient
-              colors={['#FF6B9D', '#FF8FA3']}
+              colors={colors.gradients.primary}
               style={styles.startButtonGradient}
             >
               <Play size={24} color="#FFFFFF" />
@@ -302,7 +330,9 @@ export default function WorkoutScreen() {
         <View style={styles.workoutContainer}>
           {activeExercises.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>Add your first exercise to get started!</Text>
+              <Text style={[styles.emptyStateText, { color: colors.text.secondary }]}>
+                Add your first exercise to get started!
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -318,7 +348,7 @@ export default function WorkoutScreen() {
             onPress={() => setShowExerciseModal(true)}
           >
             <LinearGradient
-              colors={['#FF6B9D', '#FF8FA3']}
+              colors={colors.gradients.primary}
               style={styles.addExerciseGradient}
             >
               <Plus size={24} color="#FFFFFF" />
@@ -333,19 +363,20 @@ export default function WorkoutScreen() {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Exercise</Text>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text.primary }]}>Select Exercise</Text>
             <TouchableOpacity onPress={() => setShowExerciseModal(false)}>
-              <X size={24} color="#2C2C2C" />
+              <X size={24} color={colors.text.primary} />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.searchContainer}>
-            <Search size={20} color="#6C757D" />
+          <View style={[styles.searchContainer, { backgroundColor: colors.inputBackground }]}>
+            <Search size={20} color={colors.text.secondary} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: colors.text.primary }]}
               placeholder="Search exercises..."
+              placeholderTextColor={colors.text.tertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -358,14 +389,14 @@ export default function WorkoutScreen() {
                 <TouchableOpacity
                   style={[
                     styles.categoryChip,
-                    selectedCategory === item && styles.categoryChipSelected,
+                    { backgroundColor: selectedCategory === item ? colors.primary : colors.inputBackground },
                   ]}
                   onPress={() => setSelectedCategory(item)}
                 >
                   <Text
                     style={[
                       styles.categoryChipText,
-                      selectedCategory === item && styles.categoryChipTextSelected,
+                      { color: selectedCategory === item ? colors.text.onPrimary : colors.text.secondary },
                     ]}
                   >
                     {item}
@@ -386,14 +417,19 @@ export default function WorkoutScreen() {
           />
         </SafeAreaView>
       </Modal>
+
+      <CustomPopup
+        {...popupConfig}
+        onClose={hidePopup}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -402,10 +438,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F4',
+    borderBottomColor: colors.border,
   },
   timerContainer: {
-    backgroundColor: '#F8F9FA',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -413,10 +448,8 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: 24,
     fontFamily: 'Inter-Bold',
-    color: '#2C2C2C',
   },
   endButton: {
-    backgroundColor: '#FF6B9D',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -425,19 +458,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
-  },
-  errorContainer: {
-    backgroundColor: '#FFE5E5',
-    marginHorizontal: 16,
-    marginVertical: 8,
-    padding: 12,
-    borderRadius: 8,
-  },
-  errorText: {
-    color: '#D32F2F',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    textAlign: 'center',
   },
   startContainer: {
     flex: 1,
@@ -484,9 +504,9 @@ const styles = StyleSheet.create({
   },
   startButton: {
     borderRadius: 16,
-    shadowColor: '#FF6B9D',
+    shadowColor: colors.shadow.color,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: colors.shadow.opacity,
     shadowRadius: 8,
     elevation: 5,
   },
@@ -516,19 +536,16 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#6C757D',
     textAlign: 'center',
   },
   activeExerciseCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F3F4',
-    shadowColor: '#000',
+    shadowColor: colors.shadow.color,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: colors.shadow.opacity,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -541,7 +558,6 @@ const styles = StyleSheet.create({
   activeExerciseName: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#2C2C2C',
   },
   setsHeader: {
     flexDirection: 'row',
@@ -552,7 +568,6 @@ const styles = StyleSheet.create({
   setHeaderText: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#6C757D',
     width: 60,
     textAlign: 'center',
   },
@@ -565,30 +580,23 @@ const styles = StyleSheet.create({
   setNumber: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#2C2C2C',
     width: 60,
     textAlign: 'center',
   },
   setInput: {
     width: 60,
     height: 40,
-    backgroundColor: '#F1F3F4',
     borderRadius: 8,
     textAlign: 'center',
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#2C2C2C',
   },
   checkButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F3F4',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  checkButtonCompleted: {
-    backgroundColor: '#A8E6CF',
   },
   addSetButton: {
     flexDirection: 'row',
@@ -600,7 +608,6 @@ const styles = StyleSheet.create({
   addSetText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#FF6B9D',
     marginLeft: 4,
   },
   addExerciseButton: {
@@ -610,9 +617,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    shadowColor: '#FF6B9D',
+    shadowColor: colors.shadow.color,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: colors.shadow.opacity,
     shadowRadius: 8,
     elevation: 5,
   },
@@ -625,7 +632,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -634,17 +640,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F4',
   },
   modalTitle: {
     fontSize: 20,
     fontFamily: 'Inter-SemiBold',
-    color: '#2C2C2C',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F3F4',
     marginHorizontal: 16,
     marginVertical: 16,
     paddingHorizontal: 12,
@@ -655,7 +658,6 @@ const styles = StyleSheet.create({
     height: 40,
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#2C2C2C',
     marginLeft: 8,
   },
   categoriesContainer: {
@@ -665,20 +667,12 @@ const styles = StyleSheet.create({
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#F1F3F4',
     borderRadius: 20,
     marginRight: 8,
-  },
-  categoryChipSelected: {
-    backgroundColor: '#FF6B9D',
   },
   categoryChipText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#6C757D',
-  },
-  categoryChipTextSelected: {
-    color: '#FFFFFF',
   },
   exerciseItem: {
     flexDirection: 'row',
@@ -686,7 +680,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F4',
   },
   exerciseInfo: {
     flex: 1,
@@ -694,12 +687,10 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#2C2C2C',
     marginBottom: 4,
   },
   exerciseDetails: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6C757D',
   },
 });
