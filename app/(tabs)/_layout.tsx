@@ -1,5 +1,5 @@
 import { Tabs, Redirect } from 'expo-router';
-import { Home, Dumbbell, Heart, User, Settings, BookOpen } from 'lucide-react-native';
+import { Chrome as Home, Dumbbell, Heart, User, Settings, BookOpen } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useThemeColors } from '@/utils/colorSystem';

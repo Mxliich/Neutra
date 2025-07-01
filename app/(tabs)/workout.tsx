@@ -16,20 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useDatabase } from '@/context/DatabaseContext';
 import { useLocalSearchParams } from 'expo-router';
-import { 
-  Plus, 
-  Play, 
-  Square, 
-  X, 
-  Search, 
-  Check, 
-  Dumbbell, 
-  Timer, 
-  BookOpen,
-  Trash2,
-  MoreVertical,
-  Clock
-} from 'lucide-react-native';
+import { Plus, Play, Square, X, Search, Check, Dumbbell, Timer, BookOpen, Trash2, MoveVertical as MoreVertical, Clock } from 'lucide-react-native';
 import { useThemeColors } from '@/utils/colorSystem';
 import CustomPopup from '@/components/CustomPopup';
 import { usePopup } from '@/hooks/usePopup';

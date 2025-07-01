@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, Star, Edit3, Trash2, Play, Dumbbell } from 'lucide-react-native';
+import { Plus, Star, CreditCard as Edit3, Trash2, Play, Dumbbell } from 'lucide-react-native';
 import { useThemeColors } from '@/utils/colorSystem';
 import { useDatabase } from '@/context/DatabaseContext';
 import { useAuth } from '@/context/AuthContext';
