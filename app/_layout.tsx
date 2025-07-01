@@ -1,4 +1,4 @@
-import 'expo-sqlite-web';
+import 'expo-sqlite';
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
