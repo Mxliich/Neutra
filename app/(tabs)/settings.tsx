@@ -22,16 +22,25 @@ import {
   ChevronRight,
   Info,
   Mail,
-  Shield
+  Shield,
+  Moon,
+  Sun,
+  Monitor
 } from 'lucide-react-native';
+import { useThemeColors } from '@/utils/colorSystem';
 
 export default function SettingsScreen() {
   const { user, logout, updateProfile } = useAuth();
+  const colors = useThemeColors();
   const [isKgSelected, setIsKgSelected] = useState(user?.preferred_weight_unit === 'kg');
 
   const handleWeightUnitChange = async (value: boolean) => {
     setIsKgSelected(value);
     await updateProfile({ preferred_weight_unit: value ? 'kg' : 'lb' });
+  };
+
+  const handleThemeChange = async (theme: 'light' | 'dark' | 'system') => {
+    await updateProfile({ theme_preference: theme });
   };
 
   const handleLogout = () => {
@@ -78,15 +87,55 @@ export default function SettingsScreen() {
     Alert.alert('Feature Coming Soon', 'Data import will be available in a future update');
   };
 
+  const showThemeSelector = () => {
+    Alert.alert(
+      'Choose Theme',
+      'Select your preferred theme',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Light', 
+          onPress: () => handleThemeChange('light')
+        },
+        { 
+          text: 'Dark', 
+          onPress: () => handleThemeChange('dark')
+        },
+        { 
+          text: 'System', 
+          onPress: () => handleThemeChange('system')
+        }
+      ]
+    );
+  };
+
+  const getThemeDisplayName = () => {
+    switch (user?.theme_preference) {
+      case 'dark': return 'Dark';
+      case 'light': return 'Light';
+      case 'system': return 'System';
+      default: return 'Light';
+    }
+  };
+
+  const getThemeIcon = () => {
+    switch (user?.theme_preference) {
+      case 'dark': return Moon;
+      case 'light': return Sun;
+      case 'system': return Monitor;
+      default: return Sun;
+    }
+  };
+
   const settingsSections = [
     {
       title: 'Appearance',
       items: [
         {
-          icon: Palette,
+          icon: getThemeIcon(),
           title: 'Theme',
-          subtitle: 'Light',
-          onPress: () => Alert.alert('Coming Soon', 'Theme selection will be available soon'),
+          subtitle: getThemeDisplayName(),
+          onPress: showThemeSelector,
           hasChevron: true,
         },
       ],
@@ -176,7 +225,7 @@ export default function SettingsScreen() {
         ]}>
           <item.icon 
             size={20} 
-            color={item.isDestructive ? '#FF4444' : '#FF6B9D'} 
+            color={item.isDestructive ? colors.error : colors.primary} 
           />
         </View>
         <View style={styles.settingText}>
@@ -197,16 +246,18 @@ export default function SettingsScreen() {
           <Switch
             value={item.switchValue}
             onValueChange={item.onSwitchChange}
-            trackColor={{ false: '#F1F3F4', true: '#FF6B9D' }}
-            thumbColor={item.switchValue ? '#FFFFFF' : '#6C757D'}
+            trackColor={{ false: colors.inputBackground, true: colors.primary }}
+            thumbColor={item.switchValue ? colors.text.onPrimary : colors.text.secondary}
           />
         )}
         {item.hasChevron && (
-          <ChevronRight size={20} color="#6C757D" />
+          <ChevronRight size={20} color={colors.text.secondary} />
         )}
       </View>
     </TouchableOpacity>
   );
+
+  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -234,7 +285,7 @@ export default function SettingsScreen() {
             style={styles.profileButton}
             onPress={() => router.push('/profile')}
           >
-            <User size={20} color="#FF6B9D" />
+            <User size={20} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -251,7 +302,7 @@ export default function SettingsScreen() {
         {/* Logout Button */}
         <View style={styles.logoutContainer}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <LogOut size={20} color="#FF4444" />
+            <LogOut size={20} color={colors.error} />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -268,10 +319,10 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: 16,
@@ -281,23 +332,28 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontFamily: 'Inter-Bold',
-    color: '#2C2C2C',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#6C757D',
+    color: colors.text.secondary,
   },
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     borderRadius: 16,
     padding: 16,
     marginBottom: 32,
+    shadowColor: colors.shadow.color,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: colors.shadow.opacity,
+    shadowRadius: 4,
+    elevation: 2,
   },
   userInfo: {
     flexDirection: 'row',
@@ -308,7 +364,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -316,7 +372,7 @@ const styles = StyleSheet.create({
   userInitials: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#FFFFFF',
+    color: colors.text.onPrimary,
   },
   userDetails: {
     flex: 1,
@@ -324,19 +380,19 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#2C2C2C',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   userEmail: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6C757D',
+    color: colors.text.secondary,
   },
   profileButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -346,16 +402,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#2C2C2C',
+    color: colors.text.primary,
     marginBottom: 12,
     paddingHorizontal: 16,
   },
   sectionItems: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#F1F3F4',
+    borderColor: colors.border,
+    shadowColor: colors.shadow.color,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: colors.shadow.opacity,
+    shadowRadius: 4,
+    elevation: 2,
   },
   settingItem: {
     flexDirection: 'row',
@@ -364,7 +425,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F4',
+    borderBottomColor: colors.divider,
   },
   disabledItem: {
     opacity: 0.6,
@@ -381,7 +442,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -395,16 +456,16 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#2C2C2C',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   destructiveText: {
-    color: '#FF4444',
+    color: colors.error,
   },
   settingSubtitle: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6C757D',
+    color: colors.text.secondary,
   },
   settingRight: {
     flexDirection: 'row',
@@ -427,7 +488,7 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#FF4444',
+    color: colors.error,
     marginLeft: 8,
   },
   footer: {
@@ -438,13 +499,13 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6C757D',
+    color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: 4,
   },
   footerVersion: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#6C757D',
+    color: colors.text.secondary,
   },
 });

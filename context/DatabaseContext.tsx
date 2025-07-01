@@ -32,25 +32,13 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log('Initializing database...');
         const database = await SQLite.openDatabaseAsync('gym_logger.db');
         
-        // Drop existing tables to ensure clean schema
+        // Enable foreign keys and WAL mode
         await database.execAsync(`
           PRAGMA journal_mode = WAL;
-          PRAGMA foreign_keys = OFF;
-          
-          DROP TABLE IF EXISTS workout_sets;
-          DROP TABLE IF EXISTS workout_exercises;
-          DROP TABLE IF EXISTS personal_records;
-          DROP TABLE IF EXISTS workouts;
-          DROP TABLE IF EXISTS template_exercises;
-          DROP TABLE IF EXISTS workout_templates;
-          DROP TABLE IF EXISTS user_settings;
-          DROP TABLE IF EXISTS exercises;
-          DROP TABLE IF EXISTS users;
-          
           PRAGMA foreign_keys = ON;
         `);
         
-        // Create comprehensive tables with correct schema
+        // Create tables with proper schema
         await database.execAsync(`
           CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,16 +113,6 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             FOREIGN KEY (template_id) REFERENCES workout_templates (id) ON DELETE SET NULL
           );
 
-          CREATE TABLE IF NOT EXISTS workout_exercises (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            workout_id INTEGER NOT NULL,
-            exercise_id INTEGER NOT NULL,
-            order_index INTEGER NOT NULL,
-            notes TEXT,
-            FOREIGN KEY (workout_id) REFERENCES workouts (id) ON DELETE CASCADE,
-            FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
-          );
-
           CREATE TABLE IF NOT EXISTS workout_sets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             workout_id INTEGER NOT NULL,
@@ -157,7 +135,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             exercise_id INTEGER NOT NULL,
-            record_type VARCHAR(20) NOT NULL, -- '1RM', 'volume', 'reps'
+            record_type VARCHAR(20) NOT NULL,
             value DECIMAL(10,2) NOT NULL,
             reps INTEGER,
             weight DECIMAL(6,2),
@@ -230,7 +208,6 @@ const insertComprehensiveExercises = async (db: SQLite.SQLiteDatabase) => {
     { name: 'Dumbbell Bench Press', category: 'Chest', primary_muscle: 'Chest', secondary_muscles: 'Triceps,Shoulders', equipment: 'Dumbbells', difficulty_level: 3, instructions: 'Lie on bench with dumbbells, press up and together' },
     { name: 'Incline Dumbbell Press', category: 'Chest', primary_muscle: 'Upper Chest', secondary_muscles: 'Triceps,Shoulders', equipment: 'Dumbbells', difficulty_level: 3, instructions: 'Incline bench, press dumbbells up and together' },
     { name: 'Dumbbell Flyes', category: 'Chest', primary_muscle: 'Chest', secondary_muscles: 'Shoulders', equipment: 'Dumbbells', difficulty_level: 3, instructions: 'Lie on bench, arms wide, bring dumbbells together over chest in arc motion' },
-    { name: 'Incline Dumbbell Flyes', category: 'Chest', primary_muscle: 'Upper Chest', secondary_muscles: 'Shoulders', equipment: 'Dumbbells', difficulty_level: 3, instructions: 'Incline bench, perform flye motion targeting upper chest' },
     { name: 'Push-ups', category: 'Chest', primary_muscle: 'Chest', secondary_muscles: 'Triceps,Shoulders,Core', equipment: 'Bodyweight', difficulty_level: 2, instructions: 'Start in plank position, lower body to ground, push back up' },
     { name: 'Diamond Push-ups', category: 'Chest', primary_muscle: 'Triceps', secondary_muscles: 'Chest,Shoulders', equipment: 'Bodyweight', difficulty_level: 4, instructions: 'Push-up position with hands forming diamond shape' },
     { name: 'Wide Grip Push-ups', category: 'Chest', primary_muscle: 'Chest', secondary_muscles: 'Triceps,Shoulders', equipment: 'Bodyweight', difficulty_level: 2, instructions: 'Push-ups with hands wider than shoulders' },
