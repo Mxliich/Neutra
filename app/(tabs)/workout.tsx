@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useDatabase } from '@/context/DatabaseContext';
 import { useLocalSearchParams } from 'expo-router';
-import { Plus, Play, Square, X, Search, Check, Dumbbell, Timer, BookOpen, Trash2, MoveVertical as MoreVertical, Clock } from 'lucide-react-native';
+import { Plus, Play, Square, X, Search, Check, Dumbbell, Timer, BookOpen, Trash2, MoveVertical as MoreVertical, Clock, Scale } from 'lucide-react-native';
 import { useThemeColors } from '@/utils/colorSystem';
 import CustomPopup from '@/components/CustomPopup';
 import { usePopup } from '@/hooks/usePopup';
@@ -61,7 +61,7 @@ interface WorkoutTemplate {
 }
 
 export default function WorkoutScreen() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { db } = useDatabase();
   const colors = useThemeColors();
   const params = useLocalSearchParams();
@@ -88,6 +88,7 @@ export default function WorkoutScreen() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [currentRestTime, setCurrentRestTime] = useState(60);
   const [workoutNotes, setWorkoutNotes] = useState('');
+  const [currentWeightUnit, setCurrentWeightUnit] = useState(user?.preferred_weight_unit || 'kg');
 
   const categories = ['All', 'Chest', 'Back', 'Legs', 'Arms', 'Core', 'Cardio'];
 
@@ -110,6 +111,13 @@ export default function WorkoutScreen() {
     }
     return () => clearInterval(interval);
   }, [isWorkoutActive, workoutStartTime]);
+
+  // Update current weight unit when user preference changes
+  useEffect(() => {
+    if (user?.preferred_weight_unit) {
+      setCurrentWeightUnit(user.preferred_weight_unit);
+    }
+  }, [user?.preferred_weight_unit]);
 
   const loadExercises = async () => {
     if (!db) return;
@@ -243,7 +251,7 @@ export default function WorkoutScreen() {
               set.set_number,
               set.reps,
               set.weight,
-              user.preferred_weight_unit,
+              currentWeightUnit, // Use current workout weight unit
               set.completed,
               set.is_warmup,
               set.rest_time_seconds || null,
@@ -292,10 +300,10 @@ export default function WorkoutScreen() {
           if (!existingPR || estimated1RM > existingPR.value) {
             await db.runAsync(
               'INSERT OR REPLACE INTO personal_records (user_id, exercise_id, record_type, value, reps, weight, weight_unit, workout_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-              [user.id, activeExercise.exercise.id, '1RM', estimated1RM, maxWeightSet.reps, maxWeight, user.preferred_weight_unit, workoutId]
+              [user.id, activeExercise.exercise.id, '1RM', estimated1RM, maxWeightSet.reps, maxWeight, currentWeightUnit, workoutId]
             );
             
-            showSuccess('New Personal Record! 🏆', `New 1RM estimate for ${activeExercise.exercise.name}: ${Math.round(estimated1RM)} ${user.preferred_weight_unit}`);
+            showSuccess('New Personal Record! 🏆', `New 1RM estimate for ${activeExercise.exercise.name}: ${Math.round(estimated1RM)} ${currentWeightUnit}`);
           }
         }
 
@@ -392,6 +400,20 @@ export default function WorkoutScreen() {
     setActiveExercises(updatedExercises);
   };
 
+  const toggleWeightUnit = async () => {
+    const newUnit = currentWeightUnit === 'kg' ? 'lb' : 'kg';
+    setCurrentWeightUnit(newUnit);
+    
+    // Optionally update user preference
+    try {
+      await updateProfile({ preferred_weight_unit: newUnit });
+      showSuccess('Weight Unit Changed', `Switched to ${newUnit.toUpperCase()}`);
+    } catch (error) {
+      // If profile update fails, still allow local change for this workout
+      console.error('Failed to update user preference:', error);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -466,7 +488,9 @@ export default function WorkoutScreen() {
       <View style={styles.setsHeader}>
         <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Set</Text>
         <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Reps</Text>
-        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>Weight</Text>
+        <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>
+          Weight ({currentWeightUnit})
+        </Text>
         <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>✓</Text>
         <Text style={[styles.setHeaderText, { color: colors.text.secondary }]}>•••</Text>
       </View>
@@ -555,6 +579,19 @@ export default function WorkoutScreen() {
         </View>
         
         <View style={styles.headerActions}>
+          {/* Weight Unit Toggle - Only show during active workout */}
+          {isWorkoutActive && (
+            <TouchableOpacity
+              style={[styles.weightUnitButton, { backgroundColor: colors.accent }]}
+              onPress={toggleWeightUnit}
+            >
+              <Scale size={16} color={colors.text.onAccent} />
+              <Text style={[styles.weightUnitText, { color: colors.text.onAccent }]}>
+                {currentWeightUnit.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          )}
+          
           {!isWorkoutActive && (
             <TouchableOpacity
               style={[styles.headerButton, { backgroundColor: colors.secondary }]}
@@ -791,6 +828,18 @@ const createStyles = (colors: any) => StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: 8,
+  },
+  weightUnitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  weightUnitText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
   },
   headerButton: {
     paddingHorizontal: 12,

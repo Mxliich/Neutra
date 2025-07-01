@@ -10,6 +10,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { CircleAlert as AlertCircle, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Info, X } from 'lucide-react-native';
+import { useThemeColors } from '@/utils/colorSystem';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -45,6 +46,7 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
   position = 'center',
   swipeToClose = true,
 }) => {
+  const colors = useThemeColors();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   
@@ -114,15 +116,15 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
 
   const getPopupStyles = () => {
     const baseStyles = {
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.surface,
       borderRadius: 16,
       padding: 20,
       margin: 20,
       maxWidth: screenWidth - 40,
       elevation: 8,
-      shadowColor: '#000',
+      shadowColor: colors.shadow.color,
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
+      shadowOpacity: colors.shadow.opacity,
       shadowRadius: 8,
     };
 
@@ -131,25 +133,25 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
         return {
           ...baseStyles,
           borderLeftWidth: 4,
-          borderLeftColor: '#EF4444',
+          borderLeftColor: colors.error,
         };
       case 'success':
         return {
           ...baseStyles,
           borderLeftWidth: 4,
-          borderLeftColor: '#06D6A0',
+          borderLeftColor: colors.success,
         };
       case 'warning':
         return {
           ...baseStyles,
           borderLeftWidth: 4,
-          borderLeftColor: '#FFB627',
+          borderLeftColor: colors.warning,
         };
       case 'info':
         return {
           ...baseStyles,
           borderLeftWidth: 4,
-          borderLeftColor: '#2D9CDB',
+          borderLeftColor: colors.accent,
         };
       default:
         return baseStyles;
@@ -170,11 +172,11 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
 
   const getIconColor = () => {
     switch (type) {
-      case 'error': return '#EF4444';
-      case 'success': return '#06D6A0';
-      case 'warning': return '#FFB627';
-      case 'info': return '#2D9CDB';
-      default: return '#6C757D';
+      case 'error': return colors.error;
+      case 'success': return colors.success;
+      case 'warning': return colors.warning;
+      case 'info': return colors.accent;
+      default: return colors.text.secondary;
     }
   };
 
@@ -229,6 +231,8 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
     }
   };
 
+  const styles = createStyles(colors);
+
   return (
     <Modal
       transparent
@@ -266,20 +270,20 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
               style={styles.closeButton}
               onPress={onClose}
             >
-              <X size={20} color="#6C757D" />
+              <X size={20} color={colors.text.secondary} />
             </TouchableOpacity>
           </View>
 
           {/* Content */}
           <View style={styles.content}>
             {title && (
-              <Text style={styles.title}>
+              <Text style={[styles.title, { color: colors.text.primary }]}>
                 {title}
               </Text>
             )}
             
             {message && (
-              <Text style={styles.message}>
+              <Text style={[styles.message, { color: colors.text.secondary }]}>
                 {message}
               </Text>
             )}
@@ -293,7 +297,7 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
                   key={index}
                   style={[
                     styles.actionButton,
-                    action.primary && { backgroundColor: '#FF6B9D' },
+                    action.primary && { backgroundColor: colors.primary },
                     action.style,
                   ]}
                   onPress={() => {
@@ -305,8 +309,8 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
                     style={[
                       styles.actionText,
                       action.primary
-                        ? { color: '#FFFFFF' }
-                        : { color: '#FF6B9D' },
+                        ? { color: colors.text.onPrimary }
+                        : { color: colors.primary },
                     ]}
                   >
                     {action.text}
@@ -339,7 +343,7 @@ const CustomPopup: React.FC<CustomPopupProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -371,13 +375,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#2C2C2C',
     marginBottom: 8,
   },
   message: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6C757D',
     lineHeight: 20,
   },
   actions: {

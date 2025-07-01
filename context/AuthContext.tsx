@@ -169,14 +169,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       if (!db || !user) return;
       
-      const updateFields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-      const values = Object.values(updates);
+      // Build dynamic SQL query
+      const updateFields = Object.keys(updates);
+      const setClause = updateFields.map(field => `${field} = ?`).join(', ');
+      const values = updateFields.map(field => updates[field as keyof User]);
       
+      // Use runAsync instead of prepareAsync to avoid the null pointer exception
       await db.runAsync(
-        `UPDATE users SET ${updateFields}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
         [...values, user.id]
       );
 
+      // Fetch updated user data
       const updatedUser = await db.getFirstAsync(
         'SELECT * FROM users WHERE id = ?',
         [user.id]
@@ -188,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Profile update error:', error);
       setError('Failed to update profile');
+      throw error; // Re-throw to handle in UI
     }
   };
 
