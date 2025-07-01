@@ -13,7 +13,9 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from '@/context/AuthContext';
 import { DatabaseProvider } from '@/context/DatabaseContext';
+import { Platform } from 'react-native';
 
+// Prevent auto-hide of splash screen
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -31,6 +33,11 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // Handle font loading errors
+  if (fontError) {
+    console.error('Font loading error:', fontError);
+  }
 
   if (!fontsLoaded && !fontError) {
     return null;
